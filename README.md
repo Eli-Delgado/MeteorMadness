@@ -2,9 +2,9 @@
 
 # Simulador de Órbita y Impacto de Asteroides → Mapa de Riesgo Sísmico
 
- [![Demo](https://img.youtube.com/vi/v-WAHTA3EP4/0.jpg)](https://youtu.be/v-WAHTA3EP4)
+ [![Demo](https://img.youtube.com/vi/GmCuv9bosjA/0.jpg)](https://youtu.be/GmCuv9bosjA)
  
-*Ver demo en YouTube: [aquí](https://youtu.be/v-WAHTA3EP4)*
+*Ver demo en YouTube: [aquí](https://youtu.be/GmCuv9bosjA)*
 
 ---
 
