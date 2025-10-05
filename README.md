@@ -2,8 +2,9 @@
 
 # Simulador de Órbita y Impacto de Asteroides → Mapa de Riesgo Sísmico
 
-[![Demo](Screenshot 2025-10-05 035128.png)](https://youtu.be/v-WAHTA3EP4)  
-*Ver demo en YouTube: [aquí]([https://www.youtube.com/watch?v=VIDEO_ID](https://youtu.be/v-WAHTA3EP4))*
+ [![Demo](https://img.youtube.com/vi/v-WAHTA3EP4/0.jpg)](https://youtu.be/v-WAHTA3EP4)
+ 
+*Ver demo en YouTube: [aquí](https://youtu.be/v-WAHTA3EP4)*
 
 ---
 
@@ -38,13 +39,7 @@ Simulador web interactivo que permite visualizar órbitas de asteroides, simular
 - **Visualización:** Canvas, Leaflet.js, Leaflet.heat  
 - **Datos:** NASA NeoWs API, OpenStreetMap
 
----
 
-## Demo
-
-[![Ver Demo](Screenshot 2025-10-05 035128.png)]([https://www.youtube.com/watch?v=VIDEO_ID](https://youtu.be/v-WAHTA3EP4))  
-
-*Reemplaza `VIDEO_ID` con tu ID de video en YouTube.*
 
 ---
 
