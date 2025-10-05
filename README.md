@@ -2,8 +2,8 @@
 
 # Simulador de Órbita y Impacto de Asteroides → Mapa de Riesgo Sísmico
 
-[![Demo](https://img.youtube.com/vi/VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=VIDEO_ID)  
-*Ver demo en YouTube: [aquí](https://www.youtube.com/watch?v=VIDEO_ID)*
+[![Demo](Screenshot 2025-10-05 035128.png)](https://youtu.be/v-WAHTA3EP4)  
+*Ver demo en YouTube: [aquí]([https://www.youtube.com/watch?v=VIDEO_ID](https://youtu.be/v-WAHTA3EP4))*
 
 ---
 
@@ -19,7 +19,6 @@ Simulador web interactivo que permite visualizar órbitas de asteroides, simular
 - **Simulación de órbita 3D:** Muestra el recorrido del asteroide alrededor del Sol y la posición de la Tierra.  
 - **Impacto y mapa de riesgo:** Haz clic en el mapa para generar un radio de impacto aproximado.  
 - **Controles interactivos:** Ajusta diámetro, velocidad y elementos orbitales en tiempo real.  
-- **Modo gamificado “Defiende la Tierra”:** Experimenta con estrategias de mitigación.
 
 ---
 
@@ -43,7 +42,7 @@ Simulador web interactivo que permite visualizar órbitas de asteroides, simular
 
 ## Demo
 
-[![Ver Demo](https://img.youtube.com/vi/VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=VIDEO_ID)  
+[![Ver Demo](Screenshot 2025-10-05 035128.png)]([https://www.youtube.com/watch?v=VIDEO_ID](https://youtu.be/v-WAHTA3EP4))  
 
 *Reemplaza `VIDEO_ID` con tu ID de video en YouTube.*
 
