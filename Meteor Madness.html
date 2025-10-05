@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>NeoWs Orbit + Impact → Seismic Hazard Map</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg: #0b1020;
+            --panel: #0f1724;
+            --muted: #9aa3bd;
+            --accent: #f59e0b;
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, Arial;
+            background: var(--bg);
+            color: #e6eef8;
+        }
+
+        header {
+            padding: 12px 18px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .title {
+            font-weight: 700;
+            font-size: 18px
+        }
+
+        .container {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            height: calc(100vh - 72px);
+            box-sizing: border-box;
+        }
+
+        .panel {
+            background: var(--panel);
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 6px 18px rgba(2, 6, 23, .6);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .left {
+            flex: 1 1 60%;
+            min-width: 520px;
+        }
+
+        .right {
+            flex: 1 1 40%;
+            min-width: 340px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #00102a 0%, #00121a 100%);
+            border-radius: 8px;
+            display: block;
+        }
+
+        .controls {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        input[type=text],
+        input[type=number],
+        select {
+            width: 100%;
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, .06);
+            background: transparent;
+            color: inherit
+        }
+
+        label {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 6px;
+            display: block;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .row>* {
+            flex: 1;
+        }
+
+        button {
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            background: var(--accent);
+            color: #08101a;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .hud {
+            font-family: monospace;
+            font-size: 12px;
+            color: #dbeafe;
+            margin-left: 8px;
+        }
+
+        .small {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .footer {
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="title">NeoWs Asteroid Orbit + Impact Simulator → Seismic Hazard Map</div>
+        <div class="small">Fetch by NASA NeoWs ID (or edit orbital elements manually). Impact triggers hazard
+            visualization (approx.).</div>
+    </header>
+
+    <div class="container">
+
+        <div class="left panel">
+            <canvas id="view" width="960" height="720"></canvas>
+
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+                <button id="playBtn">Play</button>
+                <div style="flex:1">
+                    <label class="small">Simulation speed (days per real second)</label>
+                    <input id="speed" type="range" min="0.01" max="2000" step="0.01" value="500" />
+                </div>
+                <div style="width:140px;text-align:right" class="small hud">time: <span id="simTime">0</span> d</div>
+            </div>
+
+            <div class="controls">
+                <div style="flex:1" class="panel" id="leftControls" style="padding:10px;">
+                    <label>NASA NeoWs Asteroid ID (SPK-ID / nasa_jpl_id)</label>
+                    <div class="row">
+                        <input id="asteroidId" type="text" value="54550502" />
+                        <input id="apiKey" type="text" placeholder="API Key (DEMO_KEY works)"
+                            value="VsFz9blX9cv1VDf5smYbIscvyJr22KWy1dn4wi97" />
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:8px">
+                        <button id="fetchBtn">Fetch from NASA NeoWs</button>
+                        <button id="resetBtn" style="background:#9ca3ff;color:#021028">Reset Orbital Path</button>
+                    </div>
+
+                    <hr style="margin:10px 0;border-color:rgba(255,255,255,.04)" />
+
+
+                    <label>Diameter (m): <span id="diaValue">250</span></label>
+                    <input id="diameter" type="range" min="1" max="400" step="1" value="250" />
+
+                    <label>Velocity (km/s): <span id="velValue">12.0</span></label>
+                    <input id="vel" type="range" min="0" max="50" step="0.01" value="12.0" />
+
+                    <hr style="margin:10px 0;border-color:rgba(255,255,255,.04)" />
+
+                    <label class="small">Keplerian orbital elements (epoch JDTDB or epoch osculation)</label>
+
+                    <label>Semi-major axis a (AU)</label>
+                    <input id="a" type="number" step="0.000001" value="1.0" />
+
+                    <label>Eccentricity e</label>
+                    <input id="e" type="number" step="0.000001" value="0.05" />
+
+                    <label>Inclination i (deg)</label>
+                    <input id="i" type="number" step="0.0001" value="2.0" />
+
+                    <label>Longitude of ascending node Ω (deg)</label>
+                    <input id="Om" type="number" step="0.0001" value="80.0" />
+
+                    <label>Argument of perihelion ω (deg)</label>
+                    <input id="w" type="number" step="0.0001" value="120.0" />
+
+                    <label>Mean anomaly M (deg)</label>
+                    <input id="M" type="number" step="0.0001" value="10.0" />
+
+                    <label>Epoch (Julian day)</label>
+                    <input id="epoch" type="number" step="0.000001" value="2451545.0" />
+
+                    <div style="display:flex;gap:8px;margin-top:8px;">
+                        <button id="applyBtn">Apply Parameters</button>
+                        <button id="centerMapBtn" style="background:#34d399;color:#001f14">Center Map</button>
+                    </div>
+
+                </div>
+            </div>
+
+        </div> <!-- left -->
+
+        <div class="right panel">
+            <div id="map"></div>
+            <div class="footer">When an impact is detected the map will show an estimated hazard circle and a heat
+                overlay. Approximate only.</div>
+        </div>
+
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+    <script>
+        // -------------------------
+        // Constants & helpers
+        // -------------------------
+        const AU = 1.495978707e11; // meters
+        const day = 86400; // seconds
+        const G = 6.67430e-11;
+        const M_sun = 1.98847e30;
+        const mu = G * M_sun;
+        const earthRadius = 6371e3; // m
+        const canvas = document.getElementById('view');
+        const ctx = canvas.getContext('2d');
+
+        // UI elements
+        const playBtn = document.getElementById('playBtn');
+        const fetchBtn = document.getElementById('fetchBtn');
+        const applyBtn = document.getElementById('applyBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const centerMapBtn = document.getElementById('centerMapBtn');
+        const simTimeEl = document.getElementById('simTime');
+        const speedRange = document.getElementById('speed');
+
+        // inputs
+        const idInput = document.getElementById('asteroidId');
+        const keyInput = document.getElementById('apiKey');
+        const diaInput = document.getElementById('diameter');
+        const velInput = document.getElementById('vel');
+        const aInput = document.getElementById('a');
+        const eInput = document.getElementById('e');
+        const iInput = document.getElementById('i');
+        const OmInput = document.getElementById('Om');
+        const wInput = document.getElementById('w');
+        const MInput = document.getElementById('M');
+        const epochInput = document.getElementById('epoch');
+
+        // state
+        let impact = true;
+        let latlon = null;
+        let running = false;
+        let lastTs = null;
+        let simDays = 0;
+        let timeScale = parseFloat(speedRange.value);
+        let prevAstVec = null; // used to estimate impact direction
+
+        let orbit = { a: 1.0, e: 0.05, i: 2.0, Om: 80.0, w: 120.0, M: 10.0, epoch: 2451545.0 };
+        let physical = { diameter: 250, velocity_kms: 12.0, miss_km: 384400 };
+        let orbitPath = [];
+
+        // ---------- Kepler helpers ----------
+        function solveKepler(M, e, tol = 1e-10) {
+            let E = e < 0.8 ? M : Math.PI;
+            let diff = 1, iter = 0;
+            while (Math.abs(diff) > tol && iter < 100) {
+                diff = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+                E -= diff;
+                iter++;
+            }
+            return E;
+        }
+
+        function keplerToCartesian(a, e, i_deg, Om_deg, w_deg, M_deg) {
+            // a in AU -> meters
+            const i = i_deg * Math.PI / 180, Om = Om_deg * Math.PI / 180, w = w_deg * Math.PI / 180;
+            const M = (M_deg % 360) * Math.PI / 180;
+            const a_m = a * AU;
+            const E = solveKepler(M, e);
+            const cosE = Math.cos(E), sinE = Math.sin(E);
+            const x_orb = a_m * (cosE - e);
+            const y_orb = a_m * Math.sqrt(1 - e * e) * sinE;
+            const r_pf = a_m * (1 - e * cosE);
+            const factor = Math.sqrt(mu * a_m) / r_pf;
+            const vx_orb = -factor * sinE;
+            const vy_orb = factor * Math.sqrt(1 - e * e) * cosE;
+
+            const cosOm = Math.cos(Om), sinOm = Math.sin(Om);
+            const cosi = Math.cos(i), sini = Math.sin(i);
+            const cosw = Math.cos(w), sinw = Math.sin(w);
+
+            const R11 = cosOm * cosw - sinOm * sinw * cosi;
+            const R12 = -cosOm * sinw - sinOm * cosw * cosi;
+            const R21 = sinOm * cosw + cosOm * sinw * cosi;
+            const R22 = -sinOm * sinw + cosOm * cosw * cosi;
+            const R31 = sinw * sini;
+            const R32 = cosw * sini;
+
+            const rx = R11 * x_orb + R12 * y_orb;
+            const ry = R21 * x_orb + R22 * y_orb;
+            const rz = R31 * x_orb + R32 * y_orb;
+            const vx = R11 * vx_orb + R12 * vy_orb;
+            const vy = R21 * vx_orb + R22 * vy_orb;
+            const vz = R31 * vx_orb + R32 * vy_orb;
+            return { r: [rx, ry, rz], v: [vx, vy, vz] };
+        }
+
+        function buildOrbitPath(params, samples = 512) {
+            const pts = [];
+            for (let j = 0; j < samples; j++) {
+                const E = 2 * Math.PI * j / samples;
+                const a_m = params.a * AU;
+                const e = params.e;
+                const x_orb = a_m * (Math.cos(E) - e);
+                const y_orb = a_m * Math.sqrt(Math.max(0, 1 - e * e)) * Math.sin(E);
+                const i = params.i * Math.PI / 180, Om = params.Om * Math.PI / 180, w = params.w * Math.PI / 180;
+                const cosOm = Math.cos(Om), sinOm = Math.sin(Om);
+                const cosi = Math.cos(i), sini = Math.sin(i);
+                const cosw = Math.cos(w), sinw = Math.sin(w);
+                const R11 = cosOm * cosw - sinOm * sinw * cosi;
+                const R12 = -cosOm * sinw - sinOm * cosw * cosi;
+                const R21 = sinOm * cosw + cosOm * sinw * cosi;
+                const R22 = -sinOm * sinw + cosOm * cosw * cosi;
+                const R31 = sinw * sini;
+                const R32 = cosw * sini;
+                const rx = R11 * x_orb + R12 * y_orb;
+                const ry = R21 * x_orb + R22 * y_orb;
+                const rz = R31 * x_orb + R32 * y_orb;
+                pts.push([rx, ry, rz]);
+            }
+            return pts;
+        }
+
+
+
+        // advance mean anomaly by daysAdvance
+        function advanceOrbit(params, daysAdvance) {
+            const a_m = params.a * AU;
+            const n = Math.sqrt(mu / Math.pow(a_m, 3)); // rad/s
+            const dM = n * daysAdvance * day;
+            params.M = ((params.M * Math.PI / 180) + dM) * 180 / Math.PI;
+        }
+
+        function getAsteroidHelio(params) {
+            const c = keplerToCartesian(params.a, params.e, params.i, params.Om, params.w, params.M);
+            return { x: c.r[0], y: c.r[1], z: c.r[2], vx: c.v[0], vy: c.v[1], vz: c.v[2] };
+        }
+
+        function getEarthPos(daysFromEpoch) {
+            // circular approx
+            const a_m = AU;
+            const n = Math.sqrt(mu / Math.pow(a_m, 3)); // rad/s
+            const ang = (n * daysFromEpoch * day) % (2 * Math.PI);
+            return { x: Math.cos(ang) * AU, y: Math.sin(ang) * AU, z: 0 };
+        }
+
+        // convert a 3D vector in ecliptic heliocentric coords to lat/lon approx:
+        // lon = atan2(y,x), lat = asin(z / r)
+        // NOTE: this is an approximation that ignores Earth's rotation and the obliquity -> geographic transform.
+        function vectorToLatLon(vec) {
+            const r = Math.hypot(vec[0], vec[1], vec[2]);
+            const lat = Math.asin(vec[2] / r) * 180 / Math.PI;
+            const lon = Math.atan2(vec[1], vec[0]) * 180 / Math.PI;
+            // normalize lon to [-180,180]
+            let L = ((lon + 180) % 360) - 180;
+            return { lat: lat, lon: L };
+        }
+
+        // -------------------------
+        // Rendering (canvas)
+        // -------------------------
+        function worldToScreen(x, y, scale, cx, cy) { return { sx: cx + x * scale, sy: cy - y * scale }; }
+
+        function drawScene() {
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+            ctx.clearRect(0, 0, w, h);
+            const maxDisplayAU = 2.5;
+            const scale = (w * 0.42) / (maxDisplayAU * AU);
+            const cx = w / 2, cy = h / 2;
+
+            // sun
+            ctx.beginPath(); ctx.fillStyle = '#ffd166'; ctx.arc(cx, cy, 60, 0, Math.PI * 2); ctx.fill();
+            // earth orbit
+            ctx.beginPath(); ctx.strokeStyle = 'rgba(130,180,255,0.25)'; ctx.lineWidth = 1; ctx.setLineDash([6, 6]);
+            ctx.arc(cx, cy, AU * scale, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+            // earth
+            const earth = getEarthPos(simDays);
+            const eScreen = worldToScreen(earth.x, earth.y, scale, cx, cy);
+            ctx.beginPath(); ctx.fillStyle = '#5ec2ff'; ctx.arc(eScreen.sx, eScreen.sy, 36, 0, Math.PI * 2); ctx.fill();
+
+            // orbit path
+            ctx.beginPath(); ctx.strokeStyle = 'rgba(200,200,255,0.12)'; ctx.lineWidth = 1;
+            if (orbitPath && orbitPath.length > 0) {
+                for (let j = 0; j < orbitPath.length; j++) {
+                    const p = orbitPath[j];
+                    const s = worldToScreen(p[0], p[1], scale, cx, cy);
+                    if (j === 0) ctx.moveTo(s.sx, s.sy); else ctx.lineTo(s.sx, s.sy);
+                }
+            }
+            ctx.stroke();
+
+            // asteroid
+            // asteroid
+            const ast = getAsteroidHelio(orbit);
+            const aScreen = worldToScreen(ast.x, ast.y, scale, cx, cy);
+            const radiusPx = Math.max(2, physical.diameter * 0.08); // adjust scaleFactor as needed
+            ctx.beginPath();
+            ctx.fillStyle = '#ff7b7b';
+            ctx.arc(aScreen.sx, aScreen.sy, radiusPx, 0, Math.PI * 2);
+            ctx.fill();
+
+
+            // guide line
+            ctx.beginPath(); ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.moveTo(eScreen.sx, eScreen.sy); ctx.lineTo(aScreen.sx, aScreen.sy); ctx.stroke();
+
+            // HUD
+            ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = '12px monospace';
+            ctx.fillText(`Sim days: ${simDays.toFixed(4)}`, 12, 18);
+            const dist = Math.hypot(ast.x - earth.x, ast.y - earth.y, ast.z - (earth.z || 0));
+            ctx.fillText(`Distance to Earth: ${(dist / 1000).toFixed(0)} km`, 12, 36);
+        }
+
+        // -------------------------
+        // Impact detection & hazard
+        // -------------------------
+        // Leaflet map init
+        const map = L.map('map').setView([19.4326, -99.1332], 5);
+        map.on('click', function (e) {
+            const { lat, lng } = e.latlng;
+            clearHazard(); // remove previous
+            triggerImpactVisualization(
+                { lat: lat, lon: lng },
+                physical.diameter,
+                physical.velocity_kms
+            );
+
+
+            latlon = { lat: e.latlng.lat, lon: e.latlng.lng }; // save the impact point
+            updateHazardPreview();
+        });
+
+
+
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'Map data © OpenStreetMap contributors' }).addTo(map);
+        let hazardLayer = null;
+        let hazardCircle = null;
+        let heat = null;
+
+        let hazardLayers = []; // store all hazard-related layers (circles, heat, etc.)
+
+        function clearHazard() {
+            // remove all previous hazard layers
+            if (hazardLayers.length > 0) {
+                hazardLayers.forEach(layer => map.removeLayer(layer));
+                hazardLayers = [];
+            }
+        }
+
+        function computeHazardParams(diameter_m, velocity_kms) {
+            const r = diameter_m / 2;
+            const density = 3000; // kg/m3 assumption
+            const mass = (4 / 3) * Math.PI * r * r * r * density;
+            const v = velocity_kms * 1000;
+            const energyJ = 0.5 * mass * v * v;
+            return { mass, energyJ, energyMT: energyJ / 4.184e15 };
+        }
+
+        // create a simple heat radius distribution points for leaflet-heat
+        function makeHeatPoints(centerLatLng, energyMT, maxRadiusMeters) {
+            // create concentric points decreasing intensity
+            const pts = [];
+            const rings = 8;
+            for (let r = 0; r < rings; r++) {
+                const frac = 1 - r / (rings - 1);
+                const meters = (maxRadiusMeters || 50000) * (0.2 + 0.8 * frac);
+                // create several points around a small circle
+                const steps = 12;
+                for (let s = 0; s < steps; s++) {
+                    const ang = 2 * Math.PI * s / steps;
+                    const dLat = (meters / 111320) * Math.cos(ang); // approx
+                    const dLon = (meters / (111320 * Math.cos(centerLatLng.lat * Math.PI / 180))) * Math.sin(ang);
+                    pts.push([centerLatLng.lat + dLat, centerLatLng.lng + dLon, Math.max(0.02, 0.8 * frac * Math.log10(1 + energyMT))]);
+                }
+            }
+            return pts;
+        }
+        function estimateHazardRadius(diameter_m, velocity_kms) {
+            const density = 3000; // kg/m³ typical rocky asteroid
+            const radius = diameter_m / 2;
+            const mass = (4 / 3) * Math.PI * Math.pow(radius, 3) * density;
+            const velocity = velocity_kms * 1000; // to m/s
+            const energy = 0.5 * mass * Math.pow(velocity, 2);
+
+            // reduce hazard scale (smaller circles)
+            const base = Math.cbrt(energy / 1e15) * 10000; // in meters → smaller than original 10000
+            return Math.min(base, 500_000); // optional cap (500 km)
+        }
+
+        function triggerImpactVisualization(latlon, diameter, velocity) {
+            clearHazard();
+            const { lat, lon } = latlon;
+
+            const hazardRadius = estimateHazardRadius(diameter, velocity);
+
+            const circle = L.circle([lat, lon], {
+                color: "red",
+                fillColor: "red",
+                fillOpacity: 0.2,
+                radius: hazardRadius,
+            }).addTo(map);
+
+            const marker = L.marker([lat, lon])
+                .addTo(map)
+                .bindPopup(`<b>Asteroid Impact!</b><br>Hazard radius: ${(hazardRadius / 10000).toFixed(1)} km`)
+                .openPopup();
+
+            // store them so clearHazard can remove them next time
+            hazardLayers.push(circle, marker);
+
+            map.setView([lat, lon], 5);
+        }
+
+
+
+        // -------------------------
+        // Main sim loop
+        // -------------------------
+        function stepSim(dtMs) {
+            const daysAdvance = (dtMs / 1000) * timeScale;
+            simDays += daysAdvance;
+            advanceOrbit(orbit, daysAdvance);
+            // compute asteroid and earth
+            const ast = getAsteroidHelio(orbit);
+            const earth = getEarthPos(simDays);
+            // distance
+            const dx = ast.x - earth.x, dy = ast.y - earth.y, dz = ast.z - (earth.z || 0);
+            const dist = Math.hypot(dx, dy, dz);
+
+            // store previous asteroid vector relative to earth for direction estimate
+            const astRel = [ast.x - earth.x, ast.y - earth.y, ast.z - (earth.z || 0)];
+
+            playBtn.textContent = 'Play';
+
+            // store prev
+            prevAstVec = astRel;
+        }
+
+        function tick(ts) {
+            if (!lastTs) lastTs = ts;
+            const dt = ts - lastTs;
+            lastTs = ts;
+            if (running) stepSim(dt);
+            drawScene();
+            simTimeEl.textContent = simDays.toFixed(4);
+            requestAnimationFrame(tick);
+        }
+
+        // -------------------------
+        // UI wiring
+        // -------------------------
+        playBtn.addEventListener('click', () => {
+            running = !running;
+            playBtn.textContent = running ? 'Pause' : 'Play';
+            if (running) lastTs = null; // reset timers
+        });
+        speedRange.addEventListener('input', () => timeScale = parseFloat(speedRange.value));
+
+
+
+
+
+        const diaValueEl = document.getElementById('diaValue');
+        const velValueEl = document.getElementById('velValue');
+
+        diaInput.addEventListener('input', () => {
+            physical.diameter = parseFloat(diaInput.value);
+            diaValueEl.textContent = physical.diameter + ' m';
+            updateHazardPreview();
+        });
+
+        velInput.addEventListener('input', () => {
+            physical.velocity_kms = parseFloat(velInput.value);
+            
+            velValueEl.textContent = physical.velocity_kms.toFixed(2) + ' km/s';
+            updateHazardPreview();
+        });
+
+        function updateHazardPreview() {
+            if (!latlon) return; // need a reference impact point
+            clearHazard();
+            triggerImpactVisualization(latlon, physical.diameter, physical.velocity_kms);
+        }
+
+
+        applyBtn.addEventListener('click', () => {
+            orbit.a = parseFloat(aInput.value);
+            orbit.e = parseFloat(eInput.value);
+            orbit.i = parseFloat(iInput.value);
+            orbit.Om = parseFloat(OmInput.value);
+            orbit.w = parseFloat(wInput.value);
+            orbit.M = parseFloat(MInput.value);
+            orbit.epoch = parseFloat(epochInput.value) || orbit.epoch;
+            physical.diameter = parseFloat(diaInput.value);
+            physical.velocity_kms = parseFloat(velInput.value);
+            orbitPath = buildOrbitPath(orbit, 512);
+        });
+
+        resetBtn.addEventListener('click', () => {
+            orbit = { a: 1.0, e: 0.05, i: 2.0, Om: 80.0, w: 120.0, M: 10.0, epoch: 2451545.0 };
+            physical = { diameter: 250, velocity_kms: 12.0, miss_km: 384400 };
+            aInput.value = orbit.a; eInput.value = orbit.e; iInput.value = orbit.i; OmInput.value = orbit.Om; wInput.value = orbit.w; MInput.value = orbit.M; epochInput.value = orbit.epoch;
+
+            orbitPath = buildOrbitPath(orbit, 512);
+            clearHazard();
+        });
+
+        centerMapBtn.addEventListener('click', () => {
+            map.setView([19.4326, -99.1332], 5);
+        });
+
+        // -------------------------
+        // NASA fetch integration
+        // -------------------------
+        fetchBtn.addEventListener('click', async () => {
+            const id = idInput.value.trim();
+            if (!id) { alert('Please input an asteroid ID'); return; }
+            const key = keyInput.value.trim() || 'DEMO_KEY';
+            const url = `https://api.nasa.gov/neo/rest/v1/neo/${encodeURIComponent(id)}?api_key=${encodeURIComponent(key)}`;
+            try {
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+                const data = await resp.json();
+                const diam = data.estimated_diameter?.meters?.estimated_diameter_max || data.estimated_diameter?.meters?.estimated_diameter_min || 100;
+                diaInput.value = Math.round(diam);
+                if (data.close_approach_data && data.close_approach_data.length > 0) {
+                    const cad = data.close_approach_data[0];
+                    velInput.value = parseFloat(cad.relative_velocity.kilometers_per_second) || velInput.value;
+                }
+                if (data.orbital_data) {
+                    const od = data.orbital_data;
+                    aInput.value = parseFloat(od.semi_major_axis) || aInput.value;
+                    eInput.value = parseFloat(od.eccentricity) || eInput.value;
+                    iInput.value = parseFloat(od.inclination) || iInput.value;
+                    OmInput.value = parseFloat(od.longitude_of_ascending_node) || OmInput.value;
+                    wInput.value = parseFloat(od.perihelion_argument) || wInput.value;
+                    MInput.value = parseFloat(od.mean_anomaly) || MInput.value;
+                    epochInput.value = parseFloat(od.epoch_osculation) || epochInput.value;
+                    applyBtn.click();
+                } else {
+                    alert('No orbital_data found — edit manually if needed.');
+                }
+            } catch (err) {
+                alert('Fetch error: ' + err.message + '\nNote: DEMO_KEY has low limits; use your own api_key at api.nasa.gov');
+            }
+            impact = true; // enable impact on next pass
+        });
+
+        // initial
+        orbitPath = buildOrbitPath(orbit, 512);
+        requestAnimationFrame(tick);
+
+    </script>
+</body>
+
+</html>
